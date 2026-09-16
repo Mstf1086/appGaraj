@@ -1,0 +1,49 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Kullanıcılar koleksiyonu kuralları
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && (
+        request.auth.uid == userId || 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+      allow update, delete: if request.auth != null && (
+        request.auth.uid == userId || 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
+    // Garajlar koleksiyonu kuralları
+    match /garages/{garageId} {
+      allow read, update, delete: if request.auth != null && (
+        request.auth.uid == resource.data.userId || 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      
+      // Garaj altındaki araçlar koleksiyonu kuralları
+      match /vehicles/{vehicleId} {
+        allow read, update, delete: if request.auth != null && (
+          request.auth.uid == resource.data.userId || 
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+        );
+        allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+
+        // Araç altındaki alt koleksiyonlar (sigorta, kasko, trafik cezası, bakım, muayene vb.)
+        match /{subcol=**} {
+          allow read, create, update, delete: if request.auth != null && (
+            get(/databases/$(database)/documents/garages/$(garageId)).data.userId == request.auth.uid ||
+            (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+          );
+        }
+      }
+    }
+  }
+}

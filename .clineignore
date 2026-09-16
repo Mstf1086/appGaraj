@@ -1,0 +1,11 @@
+# Cline Ignore File - Excluded files and directories
+node_modules/
+dist/
+.git/
+.DS_Store
+*.log
+.env.local
+.env.*.local
+.vite/
+firebase-debug.log
+.firebaserc

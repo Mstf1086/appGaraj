@@ -1,0 +1,27 @@
+# Cline Rules - Token Efficiency & Quality Optimization
+
+## 1. Response Conciseness & Directness
+- Be direct, concise, and focused. Avoid polite filler, preamble, or fluff.
+- Explain changes in 1-2 brief sentences by referencing specific modified components/lines.
+- Do not output verbose theoretical explanations unless explicitly asked.
+
+## 2. File Reading & Context Strategy
+- Use targeted reads (`start_line` / `end_line`) when checking specific functions/sections.
+- Read only the files strictly required for the immediate task.
+- Never read, write, or inspect sensitive files (e.g., `.env`, `.env.local`, credentials).
+
+## 3. Tool Call Efficiency & Batching
+- Batch independent tool calls (e.g., reading multiple files) in a single turn.
+- Avoid sequential turns for tasks that can be performed in parallel.
+
+## 4. Code Editing & Quota Management
+- Output only the modified or added code blocks; never rewrite unchanged files completely.
+- Maintain existing coding styles, architecture, and type definitions without unnecessary refactoring.
+- Keep comments minimal and strictly functional.
+
+## 5. Execution, Safety & Debugging
+- Proactively check syntax and type errors before finalizing a task.
+- Never run destructive shell commands (e.g., `rm -rf`, `git reset --hard`, `git push --force`) without explicit user permission.
+- Never run `git status` or status-checking commands unless explicitly requested by the user.
+- Never run build commands (e.g., `npm run build`) unless explicitly requested by the user.
+- **Rule of 2 for Debugging:** If a fix fails twice consecutively, STOP trying random fixes. Present the error, explain your hypothesis, and ask the user for guidance.
