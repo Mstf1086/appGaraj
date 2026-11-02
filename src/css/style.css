@@ -187,6 +187,7 @@ body {
 }
 
 .nav-user-chip .user-avatar {
+  position: relative;
   width: 24px;
   height: 24px;
   border-radius: 50%;
@@ -507,6 +508,33 @@ body {
 }
 
 .inline-form-container h3 {
+
+/* Admin duyuru paneli — her zaman gorunur kart (inline-form degil) */
+.admin-msg-panel {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+.admin-msg-panel h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+.admin-user-info-text {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+.admin-msg-status {
+  min-height: 1.4em;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
   font-size: 1.15rem;
   font-weight: 700;
   color: var(--text-main);
@@ -1024,6 +1052,29 @@ body {
   }
 }
 
+/* Icerik kabugu (masaustu/tablan): ortalanmis konteyner + kenar bosluklari.
+   (Once yalnizca <=768px media query vardi -> masaustunde bosluk sifirdi.) */
+.main-content {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.5rem 2rem 3rem;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.section-header h1 {
+  font-size: 1.65rem;
+  color: var(--text-main);
+  letter-spacing: -0.02em;
+}
+
 /* Mobile Responsiveness */
 @media (max-width: 768px) {
   .navbar {
@@ -1271,5 +1322,680 @@ body {
     display: none !important;
   }
 }
+
+/* ===================== Refactored: inline styles moved from JS ===================== */
+
+/* Utility */
+.hidden {
+  display: none !important;
+}
+
+.btn-block {
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.auth-links-secondary {
+  margin-top: 0.6rem;
+}
+
+/* Auth message blocks (default hidden) */
+.error-message,
+.success-message {
+  display: flex;
+}
+
+/* Profile */
+.profile-card {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.profile-divider {
+  margin: 1.5rem 0;
+  border: none;
+  border-top: 1px solid var(--border-color);
+}
+
+.profile-password-form {
+  margin-top: 1rem;
+}
+
+.input-disabled {
+  background-color: #f1f5f9;
+}
+
+.input-role {
+  background-color: #f1f5f9;
+  font-weight: bold;
+}
+
+.input-role-admin {
+  color: var(--primary);
+}
+
+/* ===================== Garage / Vehicle modules ===================== */
+
+.btn-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.form-group-sm {
+  margin-bottom: 0.5rem;
+}
+
+.input-uppercase {
+  text-transform: uppercase;
+}
+
+.loading-text {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.muted-text {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+/* Garage */
+.garage-report-box {
+  padding: 1.5rem;
+  margin-top: 0.5rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+}
+
+.garage-edit-box {
+  padding: 1rem;
+  margin-top: 0.5rem;
+}
+
+.garage-body-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.garage-add-vehicle-box {
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+/* Garage report */
+.report-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.75rem;
+}
+
+.report-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.report-meta {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 1.25rem;
+}
+
+.report-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.summary-card {
+  background: var(--bg-subtle);
+  padding: 1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+}
+
+.summary-card-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.summary-card-value {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-top: 0.25rem;
+}
+
+.summary-card-value-primary {
+  color: var(--primary);
+}
+
+.report-details-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+  color: var(--text-main);
+}
+
+.report-empty {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.report-vehicle-item {
+  margin-bottom: 0.75rem;
+  padding: 0.75rem;
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.report-vehicle-count {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-left: 0.5rem;
+}
+
+.report-vehicle-cost {
+  font-weight: 700;
+  color: var(--primary);
+}
+
+/* Vehicles */
+.vehicle-empty {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.vehicle-actions-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.vehicle-detail-btn {
+  width: 100%;
+  padding: 0.6rem 1rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.vehicle-sub-actions {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.vehicle-edit-btn {
+  flex: 4;
+  padding: 0.6rem 1rem;
+  text-align: center;
+}
+
+.vehicle-delete-btn {
+  flex: 1;
+  padding: 0.6rem 0.5rem;
+  text-align: center;
+}
+
+.vehicle-edit-box {
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+}
+
+.vehicle-load-error {
+  color: var(--danger-color);
+  font-size: 0.875rem;
+}
+
+/* ===================== Dashboard / Admin ===================== */
+
+.form-error {
+  margin-top: 0.5rem;
+}
+
+.stacked-form {
+  margin-top: 1rem;
+}
+
+.form-control-full {
+  width: 100%;
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+}
+
+.loading-screen-tall {
+  height: 200px;
+}
+
+.loading-screen-short {
+  height: 150px;
+}
+
+.admin-user-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.admin-user-info {
+  min-width: 0;
+  flex: 1 1 200px;
+}
+
+.admin-user-email {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.admin-user-role {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
+}
+
+.admin-user-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.admin-edit-box {
+  margin-top: 1rem;
+}
+
+.admin-role-admin {
+  color: var(--primary);
+}
+
+.admin-role-user {
+  color: inherit;
+}
+
+/* ===================== Vehicle detail ===================== */
+
+.form-field-sm {
+  margin-bottom: 0.4rem;
+}
+
+.field-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.detail-back-btn {
+  margin-bottom: 0.5rem;
+}
+
+.detail-title {
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.detail-report-container {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  width: 100%;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+}
+
+.tracker-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(350px, 100%), 1fr));
+  gap: 1.5rem;
+}
+
+.tracker-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.tracker-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.75rem;
+}
+
+.tracker-card-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.add-sub-box {
+  padding: 1rem;
+}
+
+.form-btns {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.sub-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sub-edit-box {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  width: 100%;
+}
+
+.sub-edit-btns {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.sub-empty {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.sub-item {
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.sub-actions {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+  border-top: 1px dashed var(--border-color);
+  padding-top: 0.5rem;
+}
+
+.sub-edit-btn {
+  flex: 4;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.8rem;
+}
+
+.sub-delete-btn {
+  flex: 1;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.8rem;
+}
+
+.sub-load-error {
+  color: var(--danger-color);
+  font-size: 0.85rem;
+}
+
+.record-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex: 1;
+  font-size: 0.88rem;
+  color: var(--text-main);
+  width: 100%;
+}
+
+.record-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  color: var(--text-main);
+}
+
+.record-desc {
+  font-size: 0.83rem;
+  color: var(--text-muted);
+  background: #f8fafc;
+  padding: 0.3rem 0.5rem;
+  border-radius: 4px;
+  margin-top: 0.2rem;
+}
+
+.status-badge {
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+
+.status-badge-paid {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.status-badge-unpaid {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+/* Vehicle report */
+.report-loading {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.report-cat-block {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+}
+
+.report-cat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.report-cat-total {
+  color: var(--primary);
+}
+
+.report-record-list {
+  list-style: disc;
+  padding-left: 1.25rem;
+  font-size: 0.85rem;
+  color: var(--text-body);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+/* ===================== App-level error ===================== */
+
+.app-error-message {
+  margin: 2rem;
+}
+
+/* ===================== Bildirimler (Hatırlatıcı) ===================== */
+
+.notif-badge {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.3rem;
+  box-shadow: 0 0 0 2px var(--card-bg, #fff);
+}
+
+.user-avatar .notif-badge.hidden {
+  display: none;
+}
+
+.notif-page-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.notif-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.25rem;
+}
+
+.notif-page-summary {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.notif-item {
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.notif-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.notif-item-title {
+  font-size: 0.9rem;
+  color: var(--text-body);
+  overflow-wrap: anywhere;
+}
+
+.notif-unread-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #6366f1;
+  flex-shrink: 0;
+}
+
+.notif-item-msg {
+  font-size: 0.85rem;
+  color: var(--text-body);
+  font-weight: 600;
+}
+
+.notif-item-date {
+  font-size: 0.78rem;
+  color: #6b7280;
+}
+
+.notif-item-actions {
+  margin-top: 0.25rem;
+}
+
+.notif-unread.notif-level-0 { border-left: 4px solid #ef4444; }
+.notif-unread.notif-level-3 { border-left: 4px solid #f97316; }
+.notif-unread.notif-level-7 { border-left: 4px solid #eab308; }
+.notif-unread.notif-level-15 { border-left: 4px solid #3b82f6; }
+.notif-unread.notif-level-30 { border-left: 4px solid #64748b; }
+.notif-unread.notif-level-expired { border-left: 4px solid #7f1d1d; }
+
+.notif-read {
+  opacity: 0.6;
+}
+
+.notif-empty,
+.notif-loading {
+  padding: 1.5rem 1rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+@media (max-width: 480px) {
+  .notif-item-actions .btn {
+    width: 100%;
+  }
+}
+
+.app-error-btn {
+  margin-top: 1rem;
+}
+
+
+
+
+
+/* Tarayıcı bildirimi izin durumu kutusu */
+.notif-perm-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 0.95rem;
+}
+.notif-perm-banner.notif-perm-default { background: #eef4ff; border: 1px solid #bcd0f7; color: #1e3a8a; }
+.notif-perm-banner.notif-perm-granted { background: #effaf1; border: 1px solid #b7e1c1; color: #14532d; }
+.notif-perm-banner.notif-perm-denied { background: #fdf0f0; border: 1px solid #f2c4c4; color: #7f1d1d; }
+.notif-perm-banner.notif-perm-unsupported { background: #f4f4f5; border: 1px solid #d4d4d8; color: #3f3f46; }
+.notif-perm-banner .btn { flex-shrink: 0; }
 
 

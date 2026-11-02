@@ -5,8 +5,8 @@ import { el, clearElement } from "../services/dom.js";
 export function renderForgotView(container, navigate) {
   clearElement(container);
 
-  const errorDiv = el('div', { id: 'forgot-error', className: 'error-message', style: { display: 'none' } });
-  const successDiv = el('div', { id: 'forgot-success', className: 'success-message', style: { display: 'none' } }, ['Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.']);
+  const errorDiv = el('div', { id: 'forgot-error', className: 'error-message hidden' });
+  const successDiv = el('div', { id: 'forgot-success', className: 'success-message hidden' }, ['Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.']);
   const emailInput = el('input', { type: 'email', id: 'forgot-email', required: true, placeholder: 'ornek@mail.com', autocomplete: 'email' });
 
   const form = el('form', { id: 'forgot-form' }, [
@@ -14,7 +14,7 @@ export function renderForgotView(container, navigate) {
       el('label', { for: 'forgot-email' }, ['E-posta Adresi']),
       emailInput
     ]),
-    el('button', { type: 'submit', className: 'btn btn-primary', style: { width: '100%', marginTop: '0.5rem' } }, ['Sıfırlama Bağlantısı Gönder'])
+    el('button', { type: 'submit', className: 'btn btn-primary btn-block' }, ['Sıfırlama Bağlantısı Gönder'])
   ]);
 
   const toLogin = el('a', { href: '#', id: 'to-login' }, ['← Giriş Ekranına Dön']);
@@ -38,17 +38,17 @@ export function renderForgotView(container, navigate) {
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    errorDiv.style.display = 'none';
-    successDiv.style.display = 'none';
+    errorDiv.classList.add('hidden');
+    successDiv.classList.add('hidden');
     const email = emailInput.value;
 
     try {
       await sendPasswordResetEmail(auth, email);
-      successDiv.style.display = 'flex';
+      successDiv.classList.remove('hidden');
       form.reset();
     } catch (error) {
       errorDiv.textContent = getFriendlyErrorMessage(error.code);
-      errorDiv.style.display = 'flex';
+      errorDiv.classList.remove('hidden');
     }
   });
 

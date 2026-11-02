@@ -6,9 +6,12 @@ import { renderForgotView } from "./views/forgotView.js";
 import { renderDashboardView } from "./views/dashboardView.js";
 import { renderProfileView } from "./views/profileView.js";
 import { renderVehicleDetailView } from "./views/vehicleDetailView.js";
+import { renderNotificationsView } from "./views/notificationsView.js";
 import { renderAdminView } from "./views/adminView.js";
 import { clearElement } from "./services/dom.js";
 import { checkAppVersion } from "./services/version.js";
+import { ensureUserData, clearCache } from "./services/dataCache.js";
+import "./services/swRegister.js";
 
 checkAppVersion();
 
@@ -44,6 +47,9 @@ function navigate(route, push = true) {
       case 'profile':
         renderProfileView(appContainer, navigate);
         break;
+      case 'notifications':
+        renderNotificationsView(appContainer, navigate);
+        break;
       case 'vehicleDetail':
         renderVehicleDetailView(appContainer, navigate, params);
         break;
@@ -57,12 +63,10 @@ function navigate(route, push = true) {
     console.error('Navigation error:', err);
     clearElement(appContainer);
     const errDiv = document.createElement('div');
-    errDiv.className = 'error-message';
-    errDiv.style.margin = '2rem';
+    errDiv.className = 'error-message app-error-message';
     errDiv.textContent = 'Sayfa yüklenirken bir hata oluştu. Lütfen giriş sayfasına dönün.';
     const btn = document.createElement('button');
-    btn.className = 'btn btn-primary';
-    btn.style.marginTop = '1rem';
+    btn.className = 'btn btn-primary app-error-btn';
     btn.textContent = 'Giriş Sayfasına Git';
     btn.onclick = () => navigate('login');
     appContainer.appendChild(errDiv);
@@ -78,13 +82,20 @@ onAuthStateChanged(auth, (user) => {
     const viewName = pathname.split('?')[0];
 
     if (user) {
+      // İlk yüklemede kullanıcının TÜM verisi tek geçişte çekilip tarayıcı
+      // belleğine kaydedilir (dataCache). Sonraki tüm görünümler önbellekten
+      // okur; yazmalar cerrahi güncelleme yapar → gereksiz Firestore isteği yok.
+      ensureUserData(user.uid).catch(err => {
+        console.error('Veri önbelleği ilk yükleme başarısız:', err);
+      });
       if (['login', 'register', 'forgot', ''].includes(viewName)) {
         navigate('dashboard', true);
       } else {
         navigate(currentRoute || 'dashboard', false);
       }
     } else {
-      if (['dashboard', 'profile', 'vehicleDetail', 'admin'].includes(viewName)) {
+      clearCache();
+      if (['dashboard', 'profile', 'vehicleDetail', 'admin', 'notifications'].includes(viewName)) {
         navigate('login', true);
       } else {
         navigate(currentRoute || 'login', false);

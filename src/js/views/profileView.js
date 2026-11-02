@@ -1,5 +1,5 @@
 import { updatePassword } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDocFromServer, getDoc } from "firebase/firestore";
 import { auth, db } from "../services/firebase.js";
 import { createNavbar } from "../services/authHelper.js";
 import { el, clearElement } from "../services/dom.js";
@@ -19,7 +19,7 @@ export async function renderProfileView(container, navigate) {
     const userRef = doc(db, 'users', user.uid);
     let userSnap;
     try {
-      userSnap = await getDoc(userRef, { source: 'server' });
+      userSnap = await getDocFromServer(userRef);
     } catch (e) {
       userSnap = await getDoc(userRef);
     }
@@ -28,16 +28,16 @@ export async function renderProfileView(container, navigate) {
       roleText = r === 'admin' ? 'Admin (Yönetici)' : 'Standart Kullanıcı';
     }
   } catch (e) {
-    console.error(e);
+    console.error('Profil bilgileri yüklenemedi:', e);
   }
 
-  const errorDiv = el('div', { id: 'profile-error', className: 'error-message', style: { display: 'none' } });
-  const successDiv = el('div', { id: 'profile-success', className: 'success-message', style: { display: 'none' } });
-  const emailInput = el('input', { type: 'email', value: user ? user.email : '', disabled: true, style: { backgroundColor: '#f1f5f9' } });
-  const roleInput = el('input', { type: 'text', value: roleText, disabled: true, style: { backgroundColor: '#f1f5f9', fontWeight: 'bold', color: roleText.includes('Admin') ? 'var(--primary)' : 'inherit' } });
+  const errorDiv = el('div', { id: 'profile-error', className: 'error-message hidden' });
+  const successDiv = el('div', { id: 'profile-success', className: 'success-message hidden' });
+  const emailInput = el('input', { type: 'email', value: user ? user.email : '', disabled: true, className: 'input-disabled' });
+  const roleInput = el('input', { type: 'text', value: roleText, disabled: true, className: roleText.includes('Admin') ? 'input-role input-role-admin' : 'input-role' });
   const newPasswordInput = el('input', { type: 'password', id: 'new-password', required: true, placeholder: '********' });
 
-  const passwordForm = el('form', { id: 'password-form', style: { marginTop: '1rem' } }, [
+  const passwordForm = el('form', { id: 'password-form', className: 'profile-password-form' }, [
     el('div', { className: 'form-group' }, [
       el('label', { for: 'new-password' }, ['Yeni Şifre (En az 6 karakter)']),
       newPasswordInput
@@ -45,7 +45,7 @@ export async function renderProfileView(container, navigate) {
     el('button', { type: 'submit', className: 'btn btn-primary' }, ['Şifreyi Güncelle'])
   ]);
 
-  const authCard = el('div', { className: 'auth-card', style: { maxWidth: '600px', margin: '0 auto' } }, [
+  const authCard = el('div', { className: 'auth-card profile-card' }, [
     errorDiv,
     successDiv,
     el('div', { className: 'form-group' }, [
@@ -56,7 +56,7 @@ export async function renderProfileView(container, navigate) {
       el('label', {}, ['Kullanıcı Durumu / Rolü']),
       roleInput
     ]),
-    el('hr', { style: { margin: '1.5rem 0', border: 'none', borderTop: '1px solid var(--border-color)' } }),
+    el('hr', { className: 'profile-divider' }),
     el('h3', {}, ['Şifre Değiştir']),
     passwordForm
   ]);
@@ -73,19 +73,19 @@ export async function renderProfileView(container, navigate) {
 
   passwordForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    errorDiv.style.display = 'none';
-    successDiv.style.display = 'none';
+    errorDiv.classList.add('hidden');
+    successDiv.classList.add('hidden');
     const newPassword = newPasswordInput.value;
 
     try {
       if (!user) throw new Error('Oturum açmış kullanıcı bulunamadı.');
       await updatePassword(user, newPassword);
       successDiv.textContent = 'Şifreniz başarıyla güncellendi.';
-      successDiv.style.display = 'block';
+      successDiv.classList.remove('hidden');
       passwordForm.reset();
     } catch (err) {
       errorDiv.textContent = 'Hata: ' + err.message;
-      errorDiv.style.display = 'block';
+      errorDiv.classList.remove('hidden');
     }
   });
 }

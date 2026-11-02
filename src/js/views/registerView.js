@@ -1,4 +1,4 @@
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "../services/firebase.js";
 import { el, clearElement } from "../services/dom.js";
@@ -6,7 +6,7 @@ import { el, clearElement } from "../services/dom.js";
 export function renderRegisterView(container, navigate) {
   clearElement(container);
 
-  const errorDiv = el('div', { id: 'register-error', className: 'error-message', style: { display: 'none' } });
+  const errorDiv = el('div', { id: 'register-error', className: 'error-message hidden' });
   const emailInput = el('input', { type: 'email', id: 'reg-email', required: true, placeholder: 'ornek@mail.com', autocomplete: 'email' });
   const passwordInput = el('input', { type: 'password', id: 'reg-password', required: true, placeholder: '••••••••', autocomplete: 'new-password' });
 
@@ -19,7 +19,7 @@ export function renderRegisterView(container, navigate) {
       el('label', { for: 'reg-password' }, ['Şifre (En az 6 karakter)']),
       passwordInput
     ]),
-    el('button', { type: 'submit', className: 'btn btn-primary', style: { width: '100%', marginTop: '0.5rem' } }, ['Kayıt Ol'])
+    el('button', { type: 'submit', className: 'btn btn-primary btn-block' }, ['Kayıt Ol'])
   ]);
 
   const toLogin = el('a', { href: '#', id: 'to-login' }, ['Giriş Yap']);
@@ -42,12 +42,14 @@ export function renderRegisterView(container, navigate) {
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    errorDiv.style.display = 'none';
+    errorDiv.classList.add('hidden');
     const email = emailInput.value;
     const password = passwordInput.value;
 
     try {
       const userCred = await createUserWithEmailAndPassword(auth, email, password);
+      // E-posta doğrulaması gönder; olası hata kayıt akışını bloklamaz
+      sendEmailVerification(userCred.user).catch(() => {});
       if (auth.currentUser) {
         await auth.currentUser.getIdToken(true);
       }
@@ -58,7 +60,7 @@ export function renderRegisterView(container, navigate) {
       });
     } catch (error) {
       errorDiv.textContent = getFriendlyErrorMessage(error.code);
-      errorDiv.style.display = 'flex';
+      errorDiv.classList.remove('hidden');
     }
   });
 

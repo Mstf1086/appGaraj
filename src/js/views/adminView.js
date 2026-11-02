@@ -1,11 +1,11 @@
-import { 
-  collection as fsCollection, doc as fsDoc, getDocs as fsGetDocs, 
-  getDoc as fsGetDoc, setDoc as fsSetDoc, addDoc as fsAddDoc, 
-  updateDoc as fsUpdateDoc, deleteDoc as fsDeleteDoc 
+import {
+  collection as fsCollection, doc as fsDoc, getDocs as fsGetDocs,
+  updateDoc as fsUpdateDoc, deleteDoc as fsDeleteDoc
 } from "firebase/firestore";
 import { auth, db } from "../services/firebase.js";
-import { createNavbar } from "../services/authHelper.js";
+import { createNavbar, checkIsAdmin } from "../services/authHelper.js";
 import { el, clearElement } from "../services/dom.js";
+import { sendAdminMessage } from "../services/notificationService.js";
 
 export async function renderAdminView(container, navigate) {
   const user = auth.currentUser;
@@ -16,26 +16,9 @@ export async function renderAdminView(container, navigate) {
 
   clearElement(container);
 
-  const userRef = fsDoc(db, 'users', user.uid);
-  let userSnap;
-  try {
-    userSnap = await fsGetDoc(userRef, { source: 'server' });
-  } catch (e) {
-    userSnap = await fsGetDoc(userRef);
-  }
-  let isAdmin = false;
-  if (userSnap.exists()) {
-    isAdmin = userSnap.data().role === 'admin';
-  } else {
-    const usersSnap = await fsGetDocs(fsCollection(db, 'users'));
-    const role = usersSnap.empty ? 'admin' : 'user';
-    await fsSetDoc(userRef, {
-      email: user.email,
-      role: role,
-      createdAt: new Date().toISOString()
-    });
-    isAdmin = role === 'admin';
-  }
+  // Rol yalnızca firestore.rules ile korunur; istemci tarafında otomatik admin ataması yapılmaz.
+  // "İlk kullanıcı admin olur" mantığı kaldırıldı — admin Firebase Console'dan elle atanır.
+  const isAdmin = await checkIsAdmin(user);
 
   if (!isAdmin) {
     navigate('dashboard');
@@ -51,43 +34,40 @@ export async function renderAdminView(container, navigate) {
     toggleAddUserBtn
   ]);
 
-  const userFormError = el('div', { id: 'user-form-error', className: 'error-message', style: { display: 'none', marginTop: '0.5rem' } });
-  const userEmailInput = el('input', { type: 'email', id: 'user-email', required: true, placeholder: 'kullanici@mail.com' });
-  const userRoleSelect = el('select', { id: 'user-role', className: 'form-control', style: { width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border-color)' } }, [
-    el('option', { value: 'user' }, ['Kullanıcı']),
-    el('option', { value: 'admin' }, ['Admin'])
-  ]);
-  const cancelAddUserBtn = el('button', { type: 'button', id: 'cancel-add-user', className: 'btn btn-secondary btn-sm' }, ['İptal']);
-
-  const addUserForm = el('form', { id: 'add-user-form', style: { marginTop: '1rem' } }, [
-    el('div', { className: 'form-group' }, [
-      el('label', { for: 'user-email' }, ['E-posta Adresi']),
-      userEmailInput
-    ]),
-    el('div', { className: 'form-group' }, [
-      el('label', { for: 'user-role' }, ['Rol']),
-      userRoleSelect
-    ]),
-    el('div', { style: { display: 'flex', gap: '0.5rem' } }, [
-      el('button', { type: 'submit', className: 'btn btn-primary btn-sm' }, ['Kullanıcıyı Kaydet']),
-      cancelAddUserBtn
-    ])
-  ]);
-
+  // "Yeni Kullanıcı Ekle": Firestore'a rastgele ID ile users dokümanı yazmak
+  // yetim kayıt üretir (Auth uid ile eşleşmez, kurallar create'i reddeder).
+  // Kullanıcı önce Kayıt Ol ekranından Auth hesabı açar, rolü listeden
+  // düzenlenir — bu yüzden burada yalnızca bilgilendirme gösterilir.
   const addUserContainer = el('div', { id: 'add-user-container', className: 'inline-form-container' }, [
     el('h3', {}, ['Yeni Kullanıcı Tanımla']),
-    userFormError,
-    addUserForm
+    el('p', { className: 'admin-user-info-text' }, [
+      'Yeni kullanıcı Kayıt Ol ekranından hesabını oluşturur; ardından buradaki listeden rolü düzenlenir.'
+    ]),
+    el('button', { type: 'button', id: 'cancel-add-user', className: 'btn btn-secondary btn-sm' }, ['Kapat'])
   ]);
 
-  const globalError = el('div', { id: 'admin-global-error', className: 'error-message', style: { display: 'none' } });
+  const globalError = el('div', { id: 'admin-global-error', className: 'error-message hidden' });
+  const msgTarget = el('select', { id: 'msg-target', className: 'form-control form-control-full' });
+  const msgTitle = el('input', { type: 'text', id: 'msg-title', maxLength: '80', placeholder: 'Duyuru başlığı (örn. Bakım hatırlatması)' });
+  const msgBody = el('textarea', { id: 'msg-body', rows: '3', maxLength: '500', placeholder: 'Mesaj (en fazla 500 karakter)' });
+  const msgStatus = el('div', { id: 'msg-status', className: 'admin-msg-status' });
+  const msgBtn = el('button', { type: 'button', id: 'send-msg-btn', className: 'btn btn-primary btn-sm' }, ['Bildirimi Gönder']);
+  const msgPanel = el('div', { className: 'admin-msg-panel' }, [
+    el('h3', {}, ['Kullanıcılara Bildirim Gönder']),
+    el('p', { className: 'admin-user-info-text' }, ['Açıkken anında rozet/sayfada, kapalıyken telefona push iletilir.']),
+    el('div', { className: 'form-group' }, [el('label', {}, ['Alıcı']), msgTarget]),
+    el('div', { className: 'form-group' }, [el('label', {}, ['Başlık']), msgTitle]),
+    el('div', { className: 'form-group' }, [el('label', {}, ['Mesaj']), msgBody]),
+    msgBtn, msgStatus
+  ]);
   const usersListContainer = el('div', { id: 'users-list-container', className: 'garage-grid' }, [
-    el('div', { className: 'loading-screen', style: { height: '150px' } }, ['Kullanıcılar yükleniyor...'])
+    el('div', { className: 'loading-screen loading-screen-short' }, ['Kullanıcılar yükleniyor...'])
   ]);
 
   const mainContent = el('div', { className: 'main-content' }, [
     sectionHeader,
     addUserContainer,
+    msgPanel,
     globalError,
     usersListContainer
   ]);
@@ -98,33 +78,38 @@ export async function renderAdminView(container, navigate) {
   toggleAddUserBtn.addEventListener('click', () => {
     addUserContainer.classList.toggle('active');
   });
-  cancelAddUserBtn.addEventListener('click', () => {
+  addUserContainer.querySelector('#cancel-add-user')?.addEventListener('click', () => {
     addUserContainer.classList.remove('active');
-    addUserForm.reset();
-    userFormError.style.display = 'none';
   });
 
-  loadUsers(usersListContainer, globalError);
+  loadUsers(usersListContainer, globalError).then((users) => {
+    msgTarget.replaceChildren();
+    msgTarget.appendChild(el('option', { value: '__all' }, ['Tüm kullanıcılar']));
+    (users || []).forEach((u) => msgTarget.appendChild(el('option', { value: u.id }, [u.email])));
+  });
 
-  addUserForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    userFormError.style.display = 'none';
-    const email = userEmailInput.value;
-    const role = userRoleSelect.value;
-
-    try {
-      await fsAddDoc(fsCollection(db, 'users'), {
-        email,
-        role,
-        createdAt: new Date().toISOString()
-      });
-      addUserForm.reset();
-      addUserContainer.classList.remove('active');
-      loadUsers(usersListContainer, globalError);
-    } catch (err) {
-      userFormError.textContent = 'Hata: ' + err.message;
-      userFormError.style.display = 'block';
+  msgBtn.addEventListener('click', async () => {
+    const title = msgTitle.value.trim();
+    const body = msgBody.value.trim();
+    const target = msgTarget.value;
+    msgStatus.textContent = '';
+    if (!title || !body) { msgStatus.textContent = 'Başlık ve mesaj zorunludur.'; return; }
+    const opts = Array.from(msgTarget.options).map((o) => o.value).filter((v) => v && v !== '__all');
+    const targets = target === '__all' ? opts : [target];
+    if (!target || targets.length === 0) { msgStatus.textContent = 'Alıcı bulunamadı.'; return; }
+    msgBtn.disabled = true;
+    let ok = 0;
+    for (const uid of targets) {
+      msgStatus.textContent = `Gönderiliyor... (${ok}/${targets.length})`;
+      try { await sendAdminMessage(uid, title, body); ok++; }
+      catch (err) { console.error('Bildirim gönderilemedi (' + uid + '):', err); }
     }
+    msgBtn.disabled = false;
+    msgTitle.value = '';
+    msgBody.value = '';
+    msgStatus.textContent = ok === targets.length
+      ? `✅ ${ok} kullanıcıya bildirim gönderildi.`
+      : `⚠️ ${ok}/${targets.length} gönderildi; kalanlar için konsolu kontrol edin.`;
   });
 
   usersListContainer.addEventListener('click', async (e) => {
@@ -172,11 +157,12 @@ export async function renderAdminView(container, navigate) {
 async function loadUsers(listContainer, globalError) {
   try {
     const snap = await fsGetDocs(fsCollection(db, 'users'));
+    const userOpts = snap.docs.map((d) => ({ id: d.id, email: d.data().email || d.id }));
     if (snap.empty) {
       listContainer.textContent = '';
       const empty = el('div', { className: 'empty-state' }, ['Kayıtlı kullanıcı bulunmuyor.']);
       listContainer.appendChild(empty);
-      return;
+      return [];
     }
 
     listContainer.textContent = '';
@@ -185,19 +171,19 @@ async function loadUsers(listContainer, globalError) {
       const id = docSnap.id;
 
       const card = el('div', { className: 'garage-card' }, [
-        el('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem', flexWrap: 'wrap' } }, [
-          el('div', { style: { minWidth: 0, flex: '1 1 200px' } }, [
-            el('h3', { style: { wordBreak: 'break-word', overflowWrap: 'break-word' } }, [data.email || 'İsimsiz']),
-            el('p', { style: { color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '0.25rem' } }, [
-              `Rol: `, el('strong', { style: { color: data.role === 'admin' ? 'var(--primary)' : 'inherit' } }, [data.role || 'user'])
+        el('div', { className: 'admin-user-row' }, [
+          el('div', { className: 'admin-user-info' }, [
+            el('h3', { className: 'admin-user-email' }, [data.email || 'İsimsiz']),
+            el('p', { className: 'admin-user-role' }, [
+              `Rol: `, el('strong', { className: data.role === 'admin' ? 'admin-role-admin' : 'admin-role-user' }, [data.role || 'user'])
             ])
           ]),
-          el('div', { style: { display: 'flex', gap: '0.5rem', flexShrink: 0 } }, [
+          el('div', { className: 'admin-user-actions' }, [
             el('button', { className: 'btn btn-secondary btn-sm', 'data-action': 'edit-user', 'data-id': id }, ['Düzenle']),
             el('button', { className: 'btn btn-danger btn-sm', 'data-action': 'delete-user', 'data-id': id }, ['Sil'])
           ])
         ]),
-        el('div', { id: `edit-user-box-${id}`, className: 'inline-form-container', style: { marginTop: '1rem' } }, [
+        el('div', { id: `edit-user-box-${id}`, className: 'inline-form-container admin-edit-box' }, [
           el('form', { 'data-form': 'edit-user', 'data-id': id }, [
             el('div', { className: 'form-group' }, [
               el('label', {}, ['E-posta']),
@@ -205,12 +191,12 @@ async function loadUsers(listContainer, globalError) {
             ]),
             el('div', { className: 'form-group' }, [
               el('label', {}, ['Rol']),
-              el('select', { id: 'edit-role', className: 'form-control', style: { width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border-color)' } }, [
+              el('select', { id: 'edit-role', className: 'form-control form-control-full' }, [
                 el('option', { value: 'user', selected: data.role !== 'admin' }, ['Kullanıcı']),
                 el('option', { value: 'admin', selected: data.role === 'admin' }, ['Admin'])
               ])
             ]),
-            el('div', { style: { display: 'flex', gap: '0.5rem' } }, [
+            el('div', { className: 'btn-row' }, [
               el('button', { type: 'submit', className: 'btn btn-primary btn-sm' }, ['Güncelle']),
               el('button', { type: 'button', className: 'btn btn-secondary btn-sm', 'data-action': 'cancel-edit-user', 'data-id': id }, ['İptal'])
             ])
@@ -220,8 +206,10 @@ async function loadUsers(listContainer, globalError) {
 
       listContainer.appendChild(card);
     });
+    return userOpts;
   } catch (err) {
     globalError.textContent = 'Kullanıcılar yüklenirken hata oluştu: ' + err.message;
-    globalError.style.display = 'block';
+    globalError.classList.remove('hidden');
+    return [];
   }
 }

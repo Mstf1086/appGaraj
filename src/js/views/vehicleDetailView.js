@@ -1,10 +1,14 @@
-import { 
-  collection as fsCollection, addDoc as fsAddDoc, getDocs as fsGetDocs, 
-  doc as fsDoc, getDoc as fsGetDoc, updateDoc as fsUpdateDoc, deleteDoc as fsDeleteDoc 
+import {
+  collection as fsCollection, addDoc as fsAddDoc,
+  doc as fsDoc, updateDoc as fsUpdateDoc, deleteDoc as fsDeleteDoc
 } from "firebase/firestore";
 import { auth, db } from "../services/firebase.js";
 import { createNavbar } from "../services/authHelper.js";
 import { el } from "../services/dom.js";
+import {
+  getCachedVehicle, getCachedRecords, ensureUserData,
+  cacheSetRecord, cacheDeleteRecord
+} from "../services/dataCache.js";
 
 const categories = [
   { key: 'traffic_insurance', title: 'Trafik Sigortası', type: 'insurance' },
@@ -17,13 +21,12 @@ const categories = [
 ];
 
 function appendFormFields(form, type, data = {}) {
-  const addField = (style, labelText, inputAttrs) => {
+  const addField = (labelText, inputAttrs) => {
     const fg = document.createElement('div');
-    fg.className = 'form-group';
-    fg.style.cssText = style || 'margin-bottom:0.4rem;';
+    fg.className = 'form-group form-field-sm';
     if (labelText) {
       const lbl = document.createElement('label');
-      lbl.style.cssText = 'font-size:0.8rem;color:var(--text-muted);';
+      lbl.className = 'field-label';
       lbl.textContent = labelText;
       fg.appendChild(lbl);
     }
@@ -47,17 +50,17 @@ function appendFormFields(form, type, data = {}) {
   };
 
   if (type === 'insurance') {
-    addField('margin-bottom:0.4rem;', null, { type: 'text', name: 'company', placeholder: 'Sigorta Şirketi', value: data.company || '', required: true });
-    addField('margin-bottom:0.4rem;', null, { type: 'text', name: 'policyNo', placeholder: 'Poliçe No', value: data.policyNo || '', required: true });
-    addField('margin-bottom:0.4rem;', 'Başlangıç', { type: 'date', name: 'startDate', value: data.startDate || '', required: true });
-    addField('margin-bottom:0.4rem;', 'Bitiş', { type: 'date', name: 'endDate', value: data.endDate || '', required: true });
-    addField('margin-bottom:0.4rem;', null, { type: 'number', name: 'amount', placeholder: 'Tutar (TL)', value: data.amount || '', required: true });
+    addField(null, { type: 'text', name: 'company', placeholder: 'Sigorta Şirketi', value: data.company || '', required: true });
+    addField(null, { type: 'text', name: 'policyNo', placeholder: 'Poliçe No', value: data.policyNo || '', required: true });
+    addField('Başlangıç', { type: 'date', name: 'startDate', value: data.startDate || '', required: true });
+    addField('Bitiş', { type: 'date', name: 'endDate', value: data.endDate || '', required: true });
+    addField(null, { type: 'number', name: 'amount', placeholder: 'Tutar (TL)', value: data.amount || '', required: true });
   } else if (type === 'fine') {
-    addField('margin-bottom:0.4rem;', 'Cezanın Kesildiği Tarih', { type: 'date', name: 'date', value: data.date || '', required: true });
-    addField('margin-bottom:0.4rem;', 'Son Ödeme Tarihi', { type: 'date', name: 'dueDate', value: data.dueDate || '', required: false });
-    addField('margin-bottom:0.4rem;', null, { type: 'number', name: 'amount', placeholder: 'Tutar (TL)', value: data.amount || '', required: true });
-    addField('margin-bottom:0.4rem;', null, { type: 'text', name: 'description', placeholder: 'Açıklama / Sebep', value: data.description || '', required: true });
-    addField('margin-bottom:0.4rem;', 'Durum', {
+    addField('Cezanın Kesildiği Tarih', { type: 'date', name: 'date', value: data.date || '', required: true });
+    addField('Son Ödeme Tarihi', { type: 'date', name: 'dueDate', value: data.dueDate || '', required: false });
+    addField(null, { type: 'number', name: 'amount', placeholder: 'Tutar (TL)', value: data.amount || '', required: true });
+    addField(null, { type: 'text', name: 'description', placeholder: 'Açıklama / Sebep', value: data.description || '', required: true });
+    addField('Durum', {
       tag: 'select',
       name: 'status',
       required: true,
@@ -67,20 +70,20 @@ function appendFormFields(form, type, data = {}) {
       ]
     });
   } else if (type === 'maint') {
-    addField('margin-bottom:0.4rem;', 'Tarih', { type: 'date', name: 'date', value: data.date || '', required: true });
-    addField('margin-bottom:0.4rem;', null, { type: 'text', name: 'service', placeholder: 'Servis / Tamirhane', value: data.service || '', required: true });
-    addField('margin-bottom:0.4rem;', null, { type: 'number', name: 'amount', placeholder: 'Tutar (TL)', value: data.amount || '', required: true });
-    addField('margin-bottom:0.4rem;', null, { type: 'text', name: 'description', placeholder: 'Yapılan İşlem', value: data.description || '', required: true });
+    addField('Tarih', { type: 'date', name: 'date', value: data.date || '', required: true });
+    addField(null, { type: 'text', name: 'service', placeholder: 'Servis / Tamirhane', value: data.service || '', required: true });
+    addField(null, { type: 'number', name: 'amount', placeholder: 'Tutar (TL)', value: data.amount || '', required: true });
+    addField(null, { type: 'text', name: 'description', placeholder: 'Yapılan İşlem', value: data.description || '', required: true });
   } else if (type === 'periodic') {
-    addField('margin-bottom:0.4rem;', 'Tarih', { type: 'date', name: 'date', value: data.date || '', required: true });
-    addField('margin-bottom:0.4rem;', null, { type: 'number', name: 'km', placeholder: 'Kilometre (KM)', value: data.km || '', required: true });
-    addField('margin-bottom:0.4rem;', null, { type: 'number', name: 'amount', placeholder: 'Tutar (TL)', value: data.amount || '', required: true });
-    addField('margin-bottom:0.4rem;', null, { type: 'text', name: 'description', placeholder: 'Açıklama', value: data.description || '', required: true });
+    addField('Tarih', { type: 'date', name: 'date', value: data.date || '', required: true });
+    addField(null, { type: 'number', name: 'km', placeholder: 'Kilometre (KM)', value: data.km || '', required: true });
+    addField(null, { type: 'number', name: 'amount', placeholder: 'Tutar (TL)', value: data.amount || '', required: true });
+    addField(null, { type: 'text', name: 'description', placeholder: 'Açıklama', value: data.description || '', required: true });
   } else if (type === 'insp') {
-    addField('margin-bottom:0.4rem;', 'Muayene Tarihi', { type: 'date', name: 'date', value: data.date || '', required: true });
-    addField('margin-bottom:0.4rem;', 'Geçerlilik Bitiş Tarihi', { type: 'date', name: 'endDate', value: data.endDate || '', required: true });
-    addField('margin-bottom:0.4rem;', null, { type: 'number', name: 'amount', placeholder: 'Tutar (TL)', value: data.amount || '', required: true });
-    addField('margin-bottom:0.4rem;', null, { type: 'text', name: 'station', placeholder: 'İstasyon / Notlar', value: data.station || '', required: true });
+    addField('Muayene Tarihi', { type: 'date', name: 'date', value: data.date || '', required: true });
+    addField('Geçerlilik Bitiş Tarihi', { type: 'date', name: 'endDate', value: data.endDate || '', required: true });
+    addField(null, { type: 'number', name: 'amount', placeholder: 'Tutar (TL)', value: data.amount || '', required: true });
+    addField(null, { type: 'text', name: 'station', placeholder: 'İstasyon / Notlar', value: data.station || '', required: true });
   }
 }
 
@@ -109,17 +112,16 @@ export async function renderVehicleDetailView(container, navigate, params) {
   mainContent.className = 'main-content';
 
   const flexDiv = document.createElement('div');
-  flexDiv.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;';
+  flexDiv.className = 'detail-header';
 
   const subDiv = document.createElement('div');
   const backBtn = document.createElement('button');
   backBtn.id = 'back-to-dashboard';
-  backBtn.className = 'btn btn-secondary btn-sm';
-  backBtn.style.cssText = 'margin-bottom: 0.5rem;';
+  backBtn.className = 'btn btn-secondary btn-sm detail-back-btn';
   backBtn.textContent = '← Garajlara Dön';
   const h1Title = document.createElement('h1');
   h1Title.id = 'vehicle-title';
-  h1Title.style.cssText = 'font-size: 1.85rem; font-weight: 800; color: var(--text-main);';
+  h1Title.className = 'detail-title';
   h1Title.textContent = 'Araç Bilgileri Yükleniyor...';
 
   subDiv.appendChild(backBtn);
@@ -136,19 +138,17 @@ export async function renderVehicleDetailView(container, navigate, params) {
 
   const errDiv = document.createElement('div');
   errDiv.id = 'vehicle-detail-error';
-  errDiv.className = 'error-message';
-  errDiv.style.display = 'none';
+  errDiv.className = 'error-message hidden';
   mainContent.appendChild(errDiv);
 
   const reportContainer = document.createElement('div');
   reportContainer.id = 'vehicle-report-container';
-  reportContainer.className = 'inline-form-container';
-  reportContainer.style.cssText = 'margin-bottom: 2rem; padding: 1.5rem; width: 100%; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius);';
+  reportContainer.className = 'inline-form-container detail-report-container';
   mainContent.appendChild(reportContainer);
 
   const trackerContainer = document.createElement('div');
   trackerContainer.id = 'tracker-sections-container';
-  trackerContainer.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fill, minmax(min(350px, 100%), 1fr)); gap: 1.5rem;';
+  trackerContainer.className = 'tracker-container';
   mainContent.appendChild(trackerContainer);
 
   container.appendChild(mainContent);
@@ -159,23 +159,24 @@ export async function renderVehicleDetailView(container, navigate, params) {
   });
 
   try {
-    const vehicleDocRef = fsDoc(db, `garages/${garageId}/vehicles`, vehicleId);
-    const vehicleSnap = await fsGetDoc(vehicleDocRef);
+    // F5/direkt girişte önbellek boş olabilir → veriyi bekle, sonra çiz.
+    // (Önbellek hazırsa ensureUserData ağa gitmeden anında döner.)
+    await ensureUserData(user.uid);
+    const vehicleData = getCachedVehicle(garageId, vehicleId);
 
-    if (!vehicleSnap.exists()) {
+    if (!vehicleData) {
       container.querySelector('#vehicle-detail-error').textContent = 'Araç bulunamadı.';
-      container.querySelector('#vehicle-detail-error').style.display = 'block';
+      container.querySelector('#vehicle-detail-error').classList.remove('hidden');
       return;
     }
 
-    const vehicleData = vehicleSnap.data();
     container.querySelector('#vehicle-title').textContent = `${vehicleData.brand} ${vehicleData.model} (${vehicleData.plate})`;
 
     buildTrackerCategories(container, garageId, vehicleId, user.uid);
   } catch (err) {
     const errEl = container.querySelector('#vehicle-detail-error');
     errEl.textContent = 'Hata: ' + err.message;
-    errEl.style.display = 'block';
+    errEl.classList.remove('hidden');
   }
 }
 
@@ -186,12 +187,11 @@ function buildTrackerCategories(container, garageId, vehicleId, userId) {
   categories.forEach(cat => {
     const card = document.createElement('div');
     card.className = 'card tracker-card';
-    card.style.cssText = 'background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 1.5rem; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 1rem;';
 
     const cardHeader = document.createElement('div');
-    cardHeader.style.cssText = 'display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;';
+    cardHeader.className = 'tracker-card-header';
     const h3 = document.createElement('h3');
-    h3.style.cssText = 'font-size: 1.2rem; font-weight: 700; color: var(--text-main);';
+    h3.className = 'tracker-card-title';
     h3.textContent = cat.title;
     const addBtn = document.createElement('button');
     addBtn.className = 'btn btn-primary btn-sm';
@@ -203,8 +203,7 @@ function buildTrackerCategories(container, garageId, vehicleId, userId) {
 
     const addSubBox = document.createElement('div');
     addSubBox.id = `add-sub-box-${cat.key}`;
-    addSubBox.className = 'inline-form-container';
-    addSubBox.style.padding = '1rem';
+    addSubBox.className = 'inline-form-container add-sub-box';
 
     const addForm = document.createElement('form');
     addForm.setAttribute('data-form', 'add-sub');
@@ -214,7 +213,7 @@ function buildTrackerCategories(container, garageId, vehicleId, userId) {
     appendFormFields(addForm, cat.type);
 
     const formBtns = document.createElement('div');
-    formBtns.style.cssText = 'display: flex; gap: 0.5rem; margin-top: 0.75rem;';
+    formBtns.className = 'form-btns';
     const saveBtn = document.createElement('button');
     saveBtn.type = 'submit';
     saveBtn.className = 'btn btn-primary btn-sm';
@@ -232,9 +231,9 @@ function buildTrackerCategories(container, garageId, vehicleId, userId) {
 
     const subList = document.createElement('div');
     subList.id = `sub-list-${cat.key}`;
-    subList.style.cssText = 'display: flex; flex-direction: column; gap: 0.75rem;';
+    subList.className = 'sub-list';
     const loadingDiv = document.createElement('div');
-    loadingDiv.style.cssText = 'font-size: 0.875rem; color: var(--text-muted);';
+    loadingDiv.className = 'loading-text';
     loadingDiv.textContent = 'Yükleniyor...';
     subList.appendChild(loadingDiv);
 
@@ -246,7 +245,7 @@ function buildTrackerCategories(container, garageId, vehicleId, userId) {
     loadCategoryRecords(garageId, vehicleId, cat.key, card);
   });
 
-  container.addEventListener('click', async (e) => {
+  sectionsContainer.addEventListener('click', async (e) => {
     const target = e.target.closest('[data-action]');
     if (!target) return;
     const action = target.getAttribute('data-action');
@@ -277,8 +276,7 @@ function buildTrackerCategories(container, garageId, vehicleId, userId) {
 
         const editBox = document.createElement('div');
         editBox.id = `edit-sub-box-${subId}`;
-        editBox.className = 'inline-form-container active';
-        editBox.style.cssText = 'margin-top: 0.75rem; padding: 0.75rem; width: 100%;';
+        editBox.className = 'inline-form-container active sub-edit-box';
 
         const editForm = document.createElement('form');
         editForm.setAttribute('data-form', 'edit-sub');
@@ -289,7 +287,7 @@ function buildTrackerCategories(container, garageId, vehicleId, userId) {
         appendFormFields(editForm, catObj.type, d);
 
         const editBtns = document.createElement('div');
-        editBtns.style.cssText = 'display: flex; gap: 0.5rem; margin-top: 0.5rem;';
+        editBtns.className = 'sub-edit-btns';
         const updateBtn = document.createElement('button');
         updateBtn.type = 'submit';
         updateBtn.className = 'btn btn-primary btn-sm';
@@ -306,6 +304,7 @@ function buildTrackerCategories(container, garageId, vehicleId, userId) {
         editBox.appendChild(editForm);
         itemEl.appendChild(editBox);
       } catch (err) {
+        console.error('Düzenleme formu hazırlanamadı:', err);
         alert('Hata: ' + err.message);
       }
     }
@@ -313,26 +312,29 @@ function buildTrackerCategories(container, garageId, vehicleId, userId) {
       if (!confirm('Bu kaydı silmek istediğinize emin misiniz?')) return;
       try {
         await fsDeleteDoc(fsDoc(db, `garages/${garageId}/vehicles/${vehicleId}/${subCol}`, subId));
+        cacheDeleteRecord(garageId, vehicleId, subCol, subId);
         container.querySelector(`#sub-item-${subId}`)?.remove();
-        const cardEl = target.closest('.tracker-card') || target.closest('div[style*="background"]');
+        const cardEl = target.closest('.tracker-card');
         if (cardEl) {
           const listContainer = cardEl.querySelector(`#sub-list-${subCol}`);
           if (listContainer && !listContainer.querySelector('[id^="sub-item-"]')) {
             listContainer.textContent = '';
             const emptyDiv = document.createElement('div');
-            emptyDiv.style.cssText = 'font-size: 0.85rem; color: var(--text-muted); text-align: center; padding: 0.5rem;';
+            emptyDiv.className = 'sub-empty';
             emptyDiv.textContent = 'Kayıt bulunmuyor.';
             listContainer.appendChild(emptyDiv);
           }
         }
         loadCategoryRecords(garageId, vehicleId, subCol, cardEl);
       } catch (err) {
+        console.error('Kayıt silinemedi:', err);
         alert('Hata: ' + err.message);
       }
     }
   });
 
-  container.addEventListener('submit', async (e) => {
+  sectionsContainer.addEventListener('submit', async (e) => {
+    if (!(e.target instanceof HTMLFormElement)) return;
     e.preventDefault();
     const form = e.target;
     const formType = form.getAttribute('data-form');
@@ -346,13 +348,14 @@ function buildTrackerCategories(container, garageId, vehicleId, userId) {
       if (data.km) data.km = Number(data.km);
 
       try {
-        await fsAddDoc(fsCollection(db, `garages/${garageId}/vehicles/${vehicleId}/${subCol}`), data);
+        const ref = await fsAddDoc(fsCollection(db, `garages/${garageId}/vehicles/${vehicleId}/${subCol}`), data);
+        cacheSetRecord(garageId, vehicleId, subCol, ref.id, data);
         form.reset();
         container.querySelector(`#add-sub-box-${subCol}`)?.classList.remove('active');
         const cardEl = form.closest('.tracker-card') || form.closest('div[style*="background"]');
         loadCategoryRecords(garageId, vehicleId, subCol, cardEl);
-        setTimeout(() => loadCategoryRecords(garageId, vehicleId, subCol, cardEl), 400);
       } catch (err) {
+        console.error('Kayıt eklenemedi:', err);
         alert('Hata: ' + err.message);
       }
     }
@@ -366,7 +369,8 @@ function buildTrackerCategories(container, garageId, vehicleId, userId) {
 
       try {
         await fsUpdateDoc(fsDoc(db, `garages/${garageId}/vehicles/${vehicleId}/${subCol}`, subId), data);
-        
+        cacheSetRecord(garageId, vehicleId, subCol, subId, data);
+
         const itemEl = container.querySelector(`#sub-item-${subId}`);
         if (itemEl) {
           itemEl.setAttribute('data-record', JSON.stringify(data));
@@ -379,8 +383,8 @@ function buildTrackerCategories(container, garageId, vehicleId, userId) {
 
         const cardEl = form.closest('.tracker-card') || form.closest('div[style*="background"]');
         loadCategoryRecords(garageId, vehicleId, subCol, cardEl);
-        setTimeout(() => loadCategoryRecords(garageId, vehicleId, subCol, cardEl), 500);
       } catch (err) {
+        console.error('Kayıt güncellenemedi:', err);
         alert('Hata: ' + err.message);
       }
     }
@@ -389,7 +393,7 @@ function buildTrackerCategories(container, garageId, vehicleId, userId) {
 
 function populateRecordContent(infoDiv, subCol, d) {
   infoDiv.textContent = '';
-  infoDiv.style.cssText = 'display: flex; flex-direction: column; gap: 0.35rem; flex: 1; font-size: 0.88rem; color: var(--text-main); width: 100%;';
+  infoDiv.className = 'record-info';
 
   const formatMoney = (val) => {
     if (val === undefined || val === null || val === '') return '0,00 TL';
@@ -398,7 +402,7 @@ function populateRecordContent(infoDiv, subCol, d) {
   };
 
   const metaRow = document.createElement('div');
-  metaRow.style.cssText = 'display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.85rem; color: var(--text-main);';
+  metaRow.className = 'record-meta';
 
   if (subCol === 'traffic_insurance' || subCol === 'casco') {
     const p0 = document.createElement('div');
@@ -434,10 +438,8 @@ function populateRecordContent(infoDiv, subCol, d) {
     const p3 = document.createElement('div');
     p3.textContent = `Tutar: ${formatMoney(d.amount)}`;
     const p4 = document.createElement('div');
-    const statusColor = d.status === 'Ödendi' ? '#16a34a' : '#dc2626';
-    const statusBg = d.status === 'Ödendi' ? '#dcfce7' : '#fee2e2';
     const statusSpan = document.createElement('span');
-    statusSpan.style.cssText = `background:${statusBg}; color:${statusColor}; padding:0.1rem 0.4rem; border-radius:4px; font-weight:600; font-size:0.75rem;`;
+    statusSpan.className = 'status-badge ' + (d.status === 'Ödendi' ? 'status-badge-paid' : 'status-badge-unpaid');
     statusSpan.textContent = d.status || 'Bekliyor';
     p4.appendChild(statusSpan);
 
@@ -494,7 +496,7 @@ function populateRecordContent(infoDiv, subCol, d) {
 
   if (d.description) {
     const descDiv = document.createElement('div');
-    descDiv.style.cssText = 'font-size: 0.83rem; color: var(--text-muted); background: #f8fafc; padding: 0.3rem 0.5rem; border-radius: 4px; margin-top: 0.2rem;';
+    descDiv.className = 'record-desc';
     descDiv.textContent = `Açıklama: ${d.description}`;
     infoDiv.appendChild(descDiv);
   }
@@ -502,44 +504,41 @@ function populateRecordContent(infoDiv, subCol, d) {
 
 async function loadCategoryRecords(garageId, vehicleId, subCol, cardEl) {
   const listContainer = cardEl.querySelector(`#sub-list-${subCol}`);
-  try {
-    const snap = await fsGetDocs(fsCollection(db, `garages/${garageId}/vehicles/${vehicleId}/${subCol}`));
-    if (snap.empty) {
+  // Kayıtlar Firestore'dan DEĞİL, merkezi önbellekten okunur (istek yok).
+  const records = getCachedRecords(garageId, vehicleId, subCol);
+  if (records.length === 0) {
       listContainer.textContent = '';
       const emptyDiv = document.createElement('div');
-      emptyDiv.style.cssText = 'font-size: 0.85rem; color: var(--text-muted); text-align: center; padding: 0.5rem;';
+      emptyDiv.className = 'sub-empty';
       emptyDiv.textContent = 'Kayıt bulunmuyor.';
       listContainer.appendChild(emptyDiv);
       return;
     }
 
     listContainer.textContent = '';
-    snap.forEach((docSnap) => {
-      const d = docSnap.data();
-      const subId = docSnap.id;
+    records.forEach((d) => {
+      const subId = d.id;
 
       const item = document.createElement('div');
       item.id = `sub-item-${subId}`;
       item.setAttribute('data-record', JSON.stringify(d));
-      item.style.cssText = 'background: #ffffff; border: 1px solid var(--border-color); border-radius: 8px; padding: 0.75rem 1rem; display: flex; flex-direction: column; gap: 0.75rem; box-shadow: 0 1px 2px rgba(0,0,0,0.04);';
+      item.className = 'sub-item';
 
       const infoDiv = document.createElement('div');
       populateRecordContent(infoDiv, subCol, d);
 
       const actionBtnsDiv = document.createElement('div');
-      actionBtnsDiv.style.cssText = 'display: flex; gap: 0.5rem; width: 100%; border-top: 1px dashed var(--border-color); padding-top: 0.5rem;';
+      actionBtnsDiv.className = 'sub-actions';
 
       const editSubBtn = document.createElement('button');
-      editSubBtn.className = 'btn btn-secondary btn-sm';
-      editSubBtn.style.cssText = 'flex: 4; padding: 0.3rem 0.5rem; font-size: 0.8rem;';
+      editSubBtn.className = 'btn btn-secondary btn-sm sub-edit-btn';
       editSubBtn.setAttribute('data-action', 'edit-sub');
       editSubBtn.setAttribute('data-sub-col', subCol);
       editSubBtn.setAttribute('data-sub-id', subId);
       editSubBtn.textContent = 'Düzenle';
 
       const delSubBtn = document.createElement('button');
-      delSubBtn.className = 'btn btn-danger btn-sm';
-      delSubBtn.style.cssText = 'flex: 1; padding: 0.3rem 0.5rem; font-size: 0.8rem;';
+      delSubBtn.className = 'btn btn-danger btn-sm sub-delete-btn';
       delSubBtn.setAttribute('data-action', 'delete-sub');
       delSubBtn.setAttribute('data-sub-col', subCol);
       delSubBtn.setAttribute('data-sub-id', subId);
@@ -552,13 +551,6 @@ async function loadCategoryRecords(garageId, vehicleId, subCol, cardEl) {
       item.appendChild(actionBtnsDiv);
       listContainer.appendChild(item);
     });
-  } catch (err) {
-    listContainer.textContent = '';
-    const errDiv = document.createElement('div');
-    errDiv.style.cssText = 'color: var(--danger-color); font-size: 0.85rem;';
-    errDiv.textContent = 'Kayıtlar yüklenemedi.';
-    listContainer.appendChild(errDiv);
-  }
 }
 
 async function generateVehicleReport(garageId, vehicleId, container) {
@@ -566,26 +558,24 @@ async function generateVehicleReport(garageId, vehicleId, container) {
   if (!container.classList.contains('active')) return;
 
   container.replaceChildren(
-    el('div', { style: { fontSize: '0.9rem', color: 'var(--text-muted)' } }, ['Araç raporu hazırlanıyor...'])
+    el('div', { className: 'report-loading' }, ['Araç raporu hazırlanıyor...'])
   );
 
   try {
-    const vehicleDoc = await fsGetDoc(fsDoc(db, `garages/${garageId}/vehicles`, vehicleId));
-    const vehicle = vehicleDoc.exists() ? vehicleDoc.data() : {};
+    const vehicle = getCachedVehicle(garageId, vehicleId) || {};
 
     let totalExpense = 0;
     const categorySummaries = [];
 
     for (const cat of categories) {
-      const snap = await fsGetDocs(fsCollection(db, `garages/${garageId}/vehicles/${vehicleId}/${cat.key}`));
+      const recs = getCachedRecords(garageId, vehicleId, cat.key);
       let catTotal = 0;
-      let count = snap.size;
+      const count = recs.length;
       const records = [];
-      snap.forEach(d => {
-        const data = d.data();
-        const amt = Number(data.amount) || 0;
+      recs.forEach(d => {
+        const amt = Number(d.amount) || 0;
         catTotal += amt;
-        records.push({ id: d.id, ...data });
+        records.push({ ...d });
       });
       totalExpense += catTotal;
       categorySummaries.push({ title: cat.title, count, total: catTotal, records });
@@ -593,15 +583,15 @@ async function generateVehicleReport(garageId, vehicleId, container) {
 
     container.textContent = '';
     const headerDiv = document.createElement('div');
-    headerDiv.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;';
-    
+    headerDiv.className = 'report-header';
+
     const titleEl = document.createElement('h3');
-    titleEl.style.cssText = 'font-size: 1.3rem; font-weight: 700; color: var(--text-main);';
+    titleEl.className = 'report-title';
     titleEl.textContent = `Araç Raporu: ${vehicle.brand || ''} ${vehicle.model || ''} (${vehicle.plate || ''})`;
 
     const actionBtns = document.createElement('div');
     actionBtns.className = 'report-actions';
-    actionBtns.style.cssText = 'display: flex; gap: 0.5rem;';
+    actionBtns.classList.add('btn-row');
     
     const printBtn = document.createElement('button');
     printBtn.className = 'btn btn-secondary btn-sm';
@@ -620,16 +610,16 @@ async function generateVehicleReport(garageId, vehicleId, container) {
     container.appendChild(headerDiv);
 
     const metaDiv = document.createElement('div');
-    metaDiv.style.cssText = 'font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;';
+    metaDiv.className = 'report-meta';
     metaDiv.textContent = `Rapor Oluşturma Tarihi: ${new Date().toLocaleString('tr-TR')}`;
     container.appendChild(metaDiv);
 
     const summaryBox = document.createElement('div');
-    summaryBox.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;';
-    
-    const totalCard = el('div', { style: { background: 'var(--bg-subtle)', padding: '1rem', borderRadius: 'var(--radius)', border: '1px solid var(--border-color)' } }, [
-      el('div', { style: { fontSize: '0.8rem', color: 'var(--text-muted)' } }, ['Toplam Masraf']),
-      el('div', { style: { fontSize: '1.4rem', fontWeight: '800', color: 'var(--primary)', marginTop: '0.25rem' } }, [
+    summaryBox.className = 'report-summary';
+
+    const totalCard = el('div', { className: 'summary-card' }, [
+      el('div', { className: 'summary-card-label' }, ['Toplam Masraf']),
+      el('div', { className: 'summary-card-value summary-card-value-primary' }, [
         `${totalExpense.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} TL`
       ])
     ]);
@@ -637,15 +627,15 @@ async function generateVehicleReport(garageId, vehicleId, container) {
     container.appendChild(summaryBox);
 
     const detailsTitle = document.createElement('h4');
-    detailsTitle.style.cssText = 'font-size: 1.1rem; font-weight: 700; margin-bottom: 0.75rem; color: var(--text-main);';
+    detailsTitle.className = 'report-details-title';
     detailsTitle.textContent = 'Kategori Bazlı Detaylar';
     container.appendChild(detailsTitle);
 
     categorySummaries.forEach(cat => {
-      const catDiv = el('div', { style: { marginBottom: '1rem', padding: '0.75rem', background: 'var(--bg-color)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius)' } }, [
-        el('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: '700', marginBottom: '0.5rem' } }, [
+      const catDiv = el('div', { className: 'report-cat-block' }, [
+        el('div', { className: 'report-cat-header' }, [
           el('span', {}, [`${cat.title} (${cat.count} kayıt)`]),
-          el('span', { style: { color: 'var(--primary)' } }, [
+          el('span', { className: 'report-cat-total' }, [
             `${cat.total.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} TL`
           ])
         ])
@@ -653,7 +643,7 @@ async function generateVehicleReport(garageId, vehicleId, container) {
       
       if (cat.records.length > 0) {
         const ul = document.createElement('ul');
-        ul.style.cssText = 'list-style: disc; padding-left: 1.25rem; font-size: 0.85rem; color: var(--text-body); display:flex; flex-direction:column; gap:0.25rem;';
+        ul.className = 'report-record-list';
         cat.records.forEach(r => {
           const li = document.createElement('li');
           const dateStr = r.date || r.startDate || 'Tarihsiz';

@@ -11,7 +11,9 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    sourcemap: false,
+    // public/ olduğu gibi kopyalanır: manifest, sw.js, icons → dist kökü
+    copyPublicDir: true,
     rollupOptions: {
       output: {
         manualChunks(id) {

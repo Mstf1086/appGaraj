@@ -9,9 +9,17 @@ export function el(tag, attributes = {}, children = []) {
       }
     } else if (key.startsWith('on') && typeof val === 'function') {
       element.addEventListener(key.slice(2).toLowerCase(), val);
-    } else if (key === 'style' && typeof val === 'object') {
-      Object.assign(element.style, val);
-    } else if (val != null) {
+    } else if (val === false || val === null || val === undefined) {
+      // Boolean false (selected:false, disabled:false vb.) attribute olarak
+      // yazılmamalı — setAttribute('selected', false) bile seçili sayılır.
+      continue;
+    } else if (val === true) {
+      element.setAttribute(key, '');
+      // selected/disabled/checked/required gibi özelliklerde property'yi de eşitle
+      try { if (key in element) element[key] = true; } catch (err) { /* yoksay */ }
+    } else if (key === 'value' && 'value' in element) {
+      element.value = val;
+    } else {
       element.setAttribute(key, val);
     }
   }

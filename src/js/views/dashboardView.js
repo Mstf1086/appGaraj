@@ -1,5 +1,6 @@
 import { collection as fsCollection, addDoc as fsAddDoc } from "firebase/firestore";
 import { auth, db } from "../services/firebase.js";
+import { cacheSetGarage } from "../services/dataCache.js";
 import { loadGarages, handleGarageAction, handleGarageSubmit } from "./garageModule.js";
 import { handleVehicleAction, handleVehicleSubmit } from "./vehicleModule.js";
 import { createNavbar } from "../services/authHelper.js";
@@ -22,16 +23,16 @@ export async function renderDashboardView(container, navigate) {
     toggleAddGarageBtn
   ]);
 
-  const garageFormError = el('div', { id: 'garage-form-error', className: 'error-message', style: { display: 'none', marginTop: '0.5rem' } });
+  const garageFormError = el('div', { id: 'garage-form-error', className: 'error-message hidden form-error' });
   const garageNameInput = el('input', { type: 'text', id: 'garage-name', required: true, placeholder: 'Örn: Ana Garaj' });
   const cancelAddGarageBtn = el('button', { type: 'button', id: 'cancel-add-garage', className: 'btn btn-secondary btn-sm' }, ['İptal']);
 
-  const addGarageForm = el('form', { id: 'add-garage-form', style: { marginTop: '1rem' } }, [
+  const addGarageForm = el('form', { id: 'add-garage-form', className: 'stacked-form' }, [
     el('div', { className: 'form-group' }, [
       el('label', { for: 'garage-name' }, ['Garaj Adı']),
       garageNameInput
     ]),
-    el('div', { style: { display: 'flex', gap: '0.5rem' } }, [
+    el('div', { className: 'btn-row' }, [
       el('button', { type: 'submit', className: 'btn btn-primary btn-sm' }, ['Garajı Kaydet']),
       cancelAddGarageBtn
     ])
@@ -43,10 +44,10 @@ export async function renderDashboardView(container, navigate) {
     addGarageForm
   ]);
 
-  const globalError = el('div', { id: 'dashboard-global-error', className: 'error-message', style: { display: 'none' } });
+  const globalError = el('div', { id: 'dashboard-global-error', className: 'error-message hidden' });
 
   const garagesListContainer = el('div', { id: 'garages-list-container', className: 'garage-grid' }, [
-    el('div', { className: 'loading-screen', style: { height: '200px' } }, ['Garajlar yükleniyor...'])
+    el('div', { className: 'loading-screen loading-screen-tall' }, ['Garajlar yükleniyor...'])
   ]);
 
   const mainContent = el('div', { className: 'main-content' }, [
@@ -66,7 +67,7 @@ export async function renderDashboardView(container, navigate) {
   cancelAddGarageBtn.addEventListener('click', () => {
     addGarageContainer.classList.remove('active');
     addGarageForm.reset();
-    garageFormError.style.display = 'none';
+    garageFormError.classList.add('hidden');
   });
 
   garagesListContainer.addEventListener('click', (e) => {
@@ -99,22 +100,24 @@ export async function renderDashboardView(container, navigate) {
 
   addGarageForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    garageFormError.style.display = 'none';
+    garageFormError.classList.add('hidden');
     const garageName = garageNameInput.value.trim();
     if (!garageName) return;
 
     try {
-      await fsAddDoc(fsCollection(db, 'garages'), {
+      const ref = await fsAddDoc(fsCollection(db, 'garages'), {
         name: garageName,
         userId: user.uid,
         createdAt: new Date().toISOString()
       });
+      cacheSetGarage(ref.id, { name: garageName, userId: user.uid, createdAt: new Date().toISOString() });
       addGarageForm.reset();
       addGarageContainer.classList.remove('active');
       loadGarages(container, user.uid, navigate);
     } catch (err) {
+      console.error('Garaj eklenemedi:', err);
       garageFormError.textContent = 'Hata: ' + err.message;
-      garageFormError.style.display = 'block';
+      garageFormError.classList.remove('hidden');
     }
   });
 

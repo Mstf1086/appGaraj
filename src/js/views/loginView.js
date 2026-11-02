@@ -5,7 +5,7 @@ import { el, clearElement } from "../services/dom.js";
 export function renderLoginView(container, navigate) {
   clearElement(container);
 
-  const errorDiv = el('div', { id: 'login-error', className: 'error-message', style: { display: 'none' } });
+  const errorDiv = el('div', { id: 'login-error', className: 'error-message hidden' });
   const emailInput = el('input', { type: 'email', id: 'email', required: true, placeholder: 'ornek@mail.com', autocomplete: 'email' });
   const passwordInput = el('input', { type: 'password', id: 'password', required: true, placeholder: '••••••••', autocomplete: 'current-password' });
   
@@ -18,7 +18,7 @@ export function renderLoginView(container, navigate) {
       el('label', { for: 'password' }, ['Şifre']),
       passwordInput
     ]),
-    el('button', { type: 'submit', className: 'btn btn-primary', style: { width: '100%', marginTop: '0.5rem' } }, ['Giriş Yap'])
+    el('button', { type: 'submit', className: 'btn btn-primary btn-block' }, ['Giriş Yap'])
   ]);
 
   const toRegister = el('a', { href: '#', id: 'to-register' }, ['Kayıt Ol']);
@@ -34,7 +34,7 @@ export function renderLoginView(container, navigate) {
     form,
     el('div', { className: 'auth-links' }, [
       el('p', {}, ['Hesabınız yok mu? ', toRegister]),
-      el('p', { style: { marginTop: '0.6rem' } }, [toForgot])
+      el('p', { className: 'auth-links-secondary' }, [toForgot])
     ])
   ]);
 
@@ -43,7 +43,7 @@ export function renderLoginView(container, navigate) {
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    errorDiv.style.display = 'none';
+    errorDiv.classList.add('hidden');
     const email = emailInput.value;
     const password = passwordInput.value;
 
@@ -51,7 +51,7 @@ export function renderLoginView(container, navigate) {
       await signInWithEmailAndPassword(auth, email, password);
     } catch (error) {
       errorDiv.textContent = getFriendlyErrorMessage(error.code);
-      errorDiv.style.display = 'flex';
+      errorDiv.classList.remove('hidden');
     }
   });
 

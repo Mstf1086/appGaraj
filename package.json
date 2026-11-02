@@ -1,17 +1,22 @@
 {
   "name": "garaj-yonetim-app",
   "private": true,
-  "version": "1.0.11",
+  "version": "1.4.10",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "emulators": "firebase emulators:start",
+    "test:emulators": "node tests/emulator-test.mjs",
+    "test:emulators:exec": "firebase emulators:exec --ui \"npm run test:emulators\"",
+    "test:emulators:browser": "node tests/browser-emulator-test.mjs"
   },
   "dependencies": {
-    "firebase": "^10.12.0"
+    "firebase": "^10.14.1"
   },
   "devDependencies": {
+    "puppeteer-core": "^23.11.1",
     "vite": "8.3.0"
   }
 }

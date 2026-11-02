@@ -1,46 +1,83 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
+    // Admin yardımcı fonksiyonu
+    function isAdmin() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
     // Kullanıcılar koleksiyonu kuralları
     match /users/{userId} {
-      allow read: if request.auth != null;
+      // Sadece kendi dökümanı veya admin okuyabilir (kullanıcı listesi sızmaz)
+      allow read: if request.auth != null && (
+        request.auth.uid == userId || isAdmin()
+      );
+      // Kendi dökümanını yalnızca role='user' olarak oluşturabilir; admin serbest.
+      // İstemci kendi rolünü asla yazamaz (privilege escalation engellendi).
       allow create: if request.auth != null && (
-        request.auth.uid == userId || 
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+        (request.auth.uid == userId && request.resource.data.role == 'user') ||
+        isAdmin()
       );
-      allow update, delete: if request.auth != null && (
-        request.auth.uid == userId || 
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
-      );
+      // Güncelleme/silme yalnızca admin; kullanıcı kendi rol/status'unu değiştiremez.
+      // "İlk kullanıcı admin" otomatik ataması yoktur; admin Firebase Console'dan elle atanır.
+      allow update, delete: if isAdmin();
+
+      // Bitiş tarihi hatırlatıcı bildirimleri (sadece sahibi veya admin)
+      match /notifications/{notifId} {
+        allow read, update, delete: if request.auth != null && (
+          request.auth.uid == userId || isAdmin()
+        );
+        allow create: if request.auth != null && (
+          (request.auth.uid == userId && request.resource.data.userId == userId) ||
+          isAdmin()
+        );
+      }
+
+      // Silme mühürleri: kullanıcı kendi sildiği hatırlatıcıyı işaretler
+      // (senkron aynı eşikte yeniden üretmez). Seviye/tarih alanları yalnızca
+      // sahibi/backfill tarafından güncellenir; başkası değiştiremez.
+      match /dismissedNotifications/{dismissId} {
+        allow read, create, delete: if request.auth != null && (
+          request.auth.uid == userId || isAdmin()
+        );
+        allow update: if request.auth != null && (
+          request.auth.uid == userId || isAdmin()
+        );
+      }
+
+      // FCM push token kayıtları (sadece sahibi veya admin)
+      match /fcmTokens/{tokenId} {
+        allow read, create, update, delete: if request.auth != null && (
+          request.auth.uid == userId || isAdmin()
+        );
+      }
     }
 
     // Garajlar koleksiyonu kuralları
     match /garages/{garageId} {
       allow read, update, delete: if request.auth != null && (
-        request.auth.uid == resource.data.userId || 
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+        request.auth.uid == resource.data.userId || isAdmin()
       );
       allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
-      
+
       // Garaj altındaki araçlar koleksiyonu kuralları
       match /vehicles/{vehicleId} {
         allow read, update, delete: if request.auth != null && (
-          request.auth.uid == resource.data.userId || 
-          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+          request.auth.uid == resource.data.userId || isAdmin()
         );
-        allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+        // IDOR koruması: araç yalnızca sahibinin garajına, kendi userId'si ile eklenebilir
+        allow create: if request.auth != null
+          && request.resource.data.userId == request.auth.uid
+          && get(/databases/$(database)/documents/garages/$(garageId)).data.userId == request.auth.uid;
 
         // Araç altındaki alt koleksiyonlar (sigorta, kasko, trafik cezası, bakım, muayene vb.)
         match /{subcol=**} {
           allow read, create, update, delete: if request.auth != null && (
             get(/databases/$(database)/documents/garages/$(garageId)).data.userId == request.auth.uid ||
-            (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+            isAdmin()
           );
         }
       }

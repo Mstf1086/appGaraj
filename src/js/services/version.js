@@ -1,4 +1,4 @@
-const APP_VERSION = '1.0.11';
+const APP_VERSION = '1.4.10';
 
 function clearAllCookies() {
   const cookies = document.cookie.split(";");
@@ -23,33 +23,18 @@ export function checkAppVersion() {
     return;
   }
   if (storedVersion !== APP_VERSION) {
-    alert(`Uygulama yeni sürüme (v${APP_VERSION}) güncellendi. Site belleği, çerezler ve önbellek temizlenerek sayfa yenileniyor.`);
-    const firebaseAuthKeys = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && (key.startsWith('firebase:') || key.includes('firebase'))) {
-        firebaseAuthKeys.push({ key, value: localStorage.getItem(key) });
-      }
-    }
-
-    localStorage.clear();
-    sessionStorage.clear();
-    clearAllCookies();
-
-    firebaseAuthKeys.forEach(item => {
-      localStorage.setItem(item.key, item.value);
-    });
-
+    alert(`Uygulama yeni sürüme (v${APP_VERSION}) güncellendi.`);
     localStorage.setItem('app_version', APP_VERSION);
-
+    // v1.4.10: swRegister.js 'controllerchange'de zaten reload yapar; burada çift
+    // reload'u önlemek için bayrak + cache silinmesi bitmeden reload YOK.
+    if (window.__appVersionReloading) return;
+    window.__appVersionReloading = true;
     if ('caches' in window) {
-      caches.keys().then(names => {
-        names.forEach(name => {
-          caches.delete(name);
-        });
+      caches.keys().then(names => Promise.all(names.map(name => caches.delete(name)))).catch(() => {}).finally(() => {
+        window.location.reload();
       });
+    } else {
+      window.location.reload();
     }
-
-    window.location.reload();
   }
 }

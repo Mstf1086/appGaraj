@@ -1,30 +1,29 @@
-import { 
-  collection as fsCollection, addDoc as fsAddDoc, getDocs as fsGetDocs, 
-  query as fsQuery, where as fsWhere, deleteDoc as fsDeleteDoc, 
-  doc as fsDoc, updateDoc as fsUpdateDoc 
+import {
+  collection as fsCollection, addDoc as fsAddDoc,
+  deleteDoc as fsDeleteDoc,
+  doc as fsDoc, updateDoc as fsUpdateDoc
 } from "firebase/firestore";
 import { db } from "../services/firebase.js";
 import { loadGarages } from "./garageModule.js";
+import { getCachedVehicles, cacheSetVehicle, cacheDeleteVehicle, hasAnyCachedRecords } from "../services/dataCache.js";
 
+// Araç listesi Firestore'dan DEĞİL, merkezi önbellekten okunur (istek yok).
 export async function loadVehicles(garageId, userId, cardEl) {
   const listEl = cardEl.querySelector(`#vehicles-list-${garageId}`);
-  try {
-    const q = fsQuery(fsCollection(db, `garages/${garageId}/vehicles`), fsWhere('userId', '==', userId));
-    const snap = await fsGetDocs(q);
+  const vehicles = getCachedVehicles(garageId).filter(v => !userId || v.userId === userId);
 
-    if (snap.empty) {
-      listEl.textContent = '';
-      const emptyDiv = document.createElement('div');
-      emptyDiv.style.cssText = 'font-size: 0.875rem; color: var(--text-muted); text-align: center; padding: 0.5rem;';
-      emptyDiv.textContent = 'Araç yok.';
-      listEl.appendChild(emptyDiv);
-      return;
-    }
-
+  if (vehicles.length === 0) {
     listEl.textContent = '';
-    snap.forEach((d) => {
-      const v = d.data();
-      const vId = d.id;
+    const emptyDiv = document.createElement('div');
+    emptyDiv.className = 'vehicle-empty';
+    emptyDiv.textContent = 'Araç yok.';
+    listEl.appendChild(emptyDiv);
+    return;
+  }
+
+  listEl.textContent = '';
+  vehicles.forEach((v) => {
+    const vId = v.id;
 
       const item = document.createElement('div');
       item.className = 'vehicle-item';
@@ -42,8 +41,7 @@ export async function loadVehicles(garageId, userId, cardEl) {
       infoDiv.appendChild(p);
 
       const actionsDiv = document.createElement('div');
-      actionsDiv.className = 'vehicle-actions';
-      actionsDiv.style.cssText = 'display: flex; flex-direction: column; gap: 0.5rem; width: 100%;';
+      actionsDiv.className = 'vehicle-actions vehicle-actions-col';
 
       const detailBtn = document.createElement('button');
       detailBtn.className = 'btn btn-primary btn-sm';
@@ -51,17 +49,17 @@ export async function loadVehicles(garageId, userId, cardEl) {
       detailBtn.setAttribute('data-garage-id', garageId);
       detailBtn.setAttribute('data-vehicle-id', vId);
       detailBtn.textContent = 'Detaylar / Takip';
-      detailBtn.style.cssText = 'width: 100%; padding: 0.6rem 1rem; font-weight: 600; text-align: center;';
+      detailBtn.classList.add('vehicle-detail-btn');
 
       const subActionsDiv = document.createElement('div');
-      subActionsDiv.style.cssText = 'display: flex; gap: 0.5rem; width: 100%;';
+      subActionsDiv.className = 'vehicle-sub-actions';
 
       const editBtn = document.createElement('button');
       editBtn.className = 'btn btn-secondary btn-sm';
       editBtn.setAttribute('data-action', 'edit-vehicle');
       editBtn.setAttribute('data-vehicle-id', vId);
       editBtn.textContent = 'Düzenle';
-      editBtn.style.cssText = 'flex: 4; padding: 0.6rem 1rem; text-align: center;';
+      editBtn.classList.add('vehicle-edit-btn');
 
       const delBtn = document.createElement('button');
       delBtn.className = 'btn btn-danger btn-sm';
@@ -69,7 +67,7 @@ export async function loadVehicles(garageId, userId, cardEl) {
       delBtn.setAttribute('data-garage-id', garageId);
       delBtn.setAttribute('data-vehicle-id', vId);
       delBtn.textContent = 'Sil';
-      delBtn.style.cssText = 'flex: 1; padding: 0.6rem 0.5rem; text-align: center;';
+      delBtn.classList.add('vehicle-delete-btn');
 
       subActionsDiv.appendChild(editBtn);
       subActionsDiv.appendChild(delBtn);
@@ -79,8 +77,7 @@ export async function loadVehicles(garageId, userId, cardEl) {
 
       const editBox = document.createElement('div');
       editBox.id = `edit-vehicle-box-${vId}`;
-      editBox.className = 'inline-form-container';
-      editBox.style.cssText = 'width: 100%; margin-top: 0.5rem; padding: 0.75rem;';
+      editBox.className = 'inline-form-container vehicle-edit-box';
 
       const editForm = document.createElement('form');
       editForm.setAttribute('data-form', 'edit-vehicle');
@@ -93,8 +90,7 @@ export async function loadVehicles(garageId, userId, cardEl) {
         { id: `ev-plate-${vId}`, name: 'plate', val: v.plate, ph: 'Plaka' }
       ].forEach(f => {
         const fg = document.createElement('div');
-        fg.className = 'form-group';
-        fg.style.marginBottom = '0.5rem';
+        fg.className = 'form-group form-group-sm';
         const inp = document.createElement('input');
         inp.type = 'text';
         inp.id = f.id;
@@ -103,7 +99,7 @@ export async function loadVehicles(garageId, userId, cardEl) {
         inp.required = true;
         inp.placeholder = f.ph;
         if (f.name === 'plate') {
-          inp.style.textTransform = 'uppercase';
+          inp.classList.add('input-uppercase');
           inp.addEventListener('input', (e) => {
             e.target.value = e.target.value.toLocaleUpperCase('tr-TR');
           });
@@ -113,7 +109,7 @@ export async function loadVehicles(garageId, userId, cardEl) {
       });
 
       const btnContainer = document.createElement('div');
-      btnContainer.style.cssText = 'display: flex; gap: 0.5rem;';
+      btnContainer.className = 'btn-row';
       const updateBtn = document.createElement('button');
       updateBtn.type = 'submit';
       updateBtn.className = 'btn btn-primary btn-sm';
@@ -134,14 +130,7 @@ export async function loadVehicles(garageId, userId, cardEl) {
       item.appendChild(editBox);
 
       listEl.appendChild(item);
-    });
-  } catch (err) {
-    listEl.textContent = '';
-    const errDiv = document.createElement('div');
-    errDiv.style.cssText = 'color: var(--danger-color); font-size: 0.875rem;';
-    errDiv.textContent = 'Araçlar yüklenemedi.';
-    listEl.appendChild(errDiv);
-  }
+  });
 }
 
 export async function handleVehicleAction(action, target, container, userId, navigate) {
@@ -167,11 +156,18 @@ export async function handleVehicleAction(action, target, container, userId, nav
     return;
   }
   if (action === 'delete-vehicle') {
+    // Araca eklenen kayıt (sigorta, muayene, ceza, bakım vb.) varsa silmeye izin verme
+    if (hasAnyCachedRecords(garageId, vehicleId)) {
+      alert('Bu araç silinemez: araca eklenmiş kayıtlar var. Önce araç detayından tüm kayıtları silin.');
+      return;
+    }
     if (!confirm('Aracı silmek istediğinize emin misiniz?')) return;
     try {
       await fsDeleteDoc(fsDoc(db, `garages/${garageId}/vehicles`, vehicleId));
+      cacheDeleteVehicle(garageId, vehicleId);
       loadGarages(container, userId, navigate);
     } catch (err) {
+      console.error('Araç silinemedi:', err);
       alert('Hata: ' + err.message);
     }
   }
@@ -190,11 +186,13 @@ export async function handleVehicleSubmit(form, container, userId, navigate) {
     if (!brand || !model || !plate) return;
 
     try {
-      await fsAddDoc(fsCollection(db, `garages/${garageId}/vehicles`), {
+      const ref = await fsAddDoc(fsCollection(db, `garages/${garageId}/vehicles`), {
         brand, model, plate, userId, createdAt: new Date().toISOString()
       });
+      cacheSetVehicle(garageId, ref.id, { brand, model, plate, userId, createdAt: new Date().toISOString() });
       loadGarages(container, userId, navigate);
     } catch (err) {
+      console.error('Araç eklenemedi:', err);
       alert('Hata: ' + err.message);
     }
   }
@@ -211,8 +209,10 @@ export async function handleVehicleSubmit(form, container, userId, navigate) {
 
     try {
       await fsUpdateDoc(fsDoc(db, `garages/${garageId}/vehicles`, vehicleId), { brand, model, plate });
+      cacheSetVehicle(garageId, vehicleId, { brand, model, plate });
       loadGarages(container, userId, navigate);
     } catch (err) {
+      console.error('Araç güncellenemedi:', err);
       alert('Hata: ' + err.message);
     }
   }
